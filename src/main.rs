@@ -44,6 +44,9 @@ enum AppCommands {
         #[arg(required = true)]
         term: String,
     },
+
+    /// Displays detailed usage instructions and examples
+    Usage,
 }
 
 fn main() -> Result<(), parsers::GlobalError> {
@@ -96,8 +99,12 @@ fn main() -> Result<(), parsers::GlobalError> {
         Some(AppCommands::Search { term }) => {
             search_documents(term)?;
         }
+        Some(AppCommands::Usage) => {
+            display_usage()?;
+        }
         None => {
             println!("No command provided. Use --help for usage information.");
+            println!("Or try: {} for detailed examples", "seroost usage".green());
         }
     }
 
@@ -349,5 +356,127 @@ fn search_documents(query: &str) -> Result<(), parsers::GlobalError> {
         println!("{}", "═".repeat(60).cyan());
     }
 
+    Ok(())
+}
+
+fn display_usage() -> Result<(), parsers::GlobalError> {
+    println!("{}", "═".repeat(80).cyan());
+    println!(
+        "{}",
+        "SEROOST DETAILED USAGE GUIDE".bold().green().underline()
+    );
+    println!("{}", "═".repeat(80).cyan());
+    println!();
+
+    // Installation section
+    println!("{}", "INSTALLATION".yellow().bold());
+    println!("Clone and build the repository:");
+    println!(
+        "  {} git clone https://github.com/parado-xy/seroost.git",
+        "$".bright_black()
+    );
+    println!("  {} cd seroost", "$".bright_black());
+    println!("  {} cargo build --release", "$".bright_black());
+    println!();
+    println!("Make the binary executable from anywhere (optional):");
+    println!(
+        "  {} sudo ln -s \"$(pwd)/target/release/seroost\" /usr/local/bin/",
+        "$".bright_black()
+    );
+    println!();
+
+    // Sample documents section
+    println!("{}", "CREATING SAMPLE DOCUMENTS".yellow().bold());
+    println!("Create a sample document directory for testing:");
+    println!("  {} mkdir -p ~/documents/samples", "$".bright_black());
+    println!("  {} cd ~/documents/samples", "$".bright_black());
+    println!(
+        "  {} echo \"Rust is a systems programming language focused on safety.\" > rust.txt",
+        "$".bright_black()
+    );
+    println!(
+        "  {} echo \"Python is known for its simplicity and readability.\" > python.txt",
+        "$".bright_black()
+    );
+    println!();
+
+    // Indexing section
+    println!("{}", "INDEXING DOCUMENTS".yellow().bold());
+    println!("Index your documents directory:");
+    println!(
+        "  {} seroost --index-path ~/documents/samples index",
+        "$".bright_black()
+    );
+    println!();
+    println!("{}", "Expected output:".bright_blue());
+    println!("  Creating configuration file @: ./indeces/config.json...");
+    println!(
+        "  {}Indexing directory:{} ~/documents/samples",
+        "".green().bold(),
+        "".blue()
+    );
+    println!(
+        "  {}Indexing:{} ~/documents/samples/rust.txt",
+        "".blue(),
+        "".green()
+    );
+    println!(
+        "  {}Indexing:{} ~/documents/samples/python.txt",
+        "".blue(),
+        "".green()
+    );
+    println!(
+        "  {}Saving index to:{} ./indeces/index.json",
+        "".green(),
+        "".blue()
+    );
+    println!(
+        "  {}Successfully indexed{} 2 {}documents",
+        "".green().bold(),
+        "".yellow().bold(),
+        "".green().bold()
+    );
+    println!();
+
+    // Searching section
+    println!("{}", "SEARCHING DOCUMENTS".yellow().bold());
+    println!("Search through indexed documents:");
+    println!(
+        "  {} seroost search \"programming language\"",
+        "$".bright_black()
+    );
+    println!();
+    println!("{}", "Expected output:".bright_blue());
+    println!("  {}Loading search index...{}", "".blue(), "");
+    println!(
+        "  {}Search results for:{} programming language",
+        "".green().bold(),
+        "".white().on_blue().bold()
+    );
+    println!("  {}", "═".repeat(60));
+    println!(
+        "  {}1.{} ~/documents/samples/{}rust.txt{} (Score: 0.28768)",
+        "".yellow().bold(),
+        "",
+        "".green().bold(),
+        ""
+    );
+    println!(
+        "  {}2.{} ~/documents/samples/{}python.txt{} (Score: 0.14384)",
+        "".yellow().bold(),
+        "",
+        "".green().bold(),
+        ""
+    );
+    println!("  {}", "═".repeat(60));
+    println!();
+
+    // Subsequent searches
+    println!("{}", "SUBSEQUENT SEARCHES".yellow().bold());
+    println!("After the first index, you can search without specifying the path again:");
+    println!("  {} seroost search \"readability\"", "$".bright_black());
+    println!();
+
+    println!("{}", "═".repeat(80).cyan());
     Ok(())
 }
