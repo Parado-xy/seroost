@@ -1,7 +1,7 @@
 # Seroost
 
 A lightning-fast document search engine built in Rust that indexes and searches through your documents using TF-IDF scoring.
-
+**Note that credit goes to tsoding daily on YT for starting the project about 2 years ago. He created an XML search engine with a web interface and thought of extending it. I don't think he finished the project though, so i extended it from just xml and made it a CLI tool. Here's his yt channel: https://www.youtube.com/@TsodingDaily**
 ## Features
 
 - 🚀 **Fast indexing** of documents in various formats (PDF, TXT, XML, HTML)
