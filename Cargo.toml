@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.34", features = ["derive"] }
 colored = "3.0.0"
+dirs = "6.0.0"
 lopdf = "0.36.0"
 select = "0.6.1"
 serde_json = "1.0.140"

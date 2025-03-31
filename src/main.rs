@@ -25,12 +25,13 @@ struct Cli {
     /// This path will be saved and used should the search command be used.
     #[arg(short, long)]
     index_path: Option<String>,
+    /// Pass a max file size.
+    /// Defaults to 25mb
+    #[arg(short, long, default_value = "25")]
+    max_file_size: u64,
 
     #[command(subcommand)]
     command: Option<AppCommands>,
-
-    #[arg(short, long, default_value = "25")]
-    max_file_size: u64,
 }
 
 #[derive(Subcommand)]
@@ -57,33 +58,44 @@ fn main() -> Result<(), parsers::GlobalError> {
 
     // See if an index path was provided.
     if let Some(path) = &cli.index_path {
-        // Create a configuration file.
-        const CONFIG_PATH: &str = "./indeces/config.json";
-        if let Some(parent) = Path::new(CONFIG_PATH).parent() {
+        let config_path = get_config_path(); // Use the same path regardless
+
+        // Create parent directories if needed
+        if let Some(parent) = config_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        println!("Creating configuration file @: {CONFIG_PATH}...");
-        let config_file = fs::File::create(CONFIG_PATH)?;
-        let mut configuration = HashMap::<String, String>::new();
-        configuration.insert("index_path".to_string(), path.clone());
-        serde_json::to_writer(config_file, &configuration)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
-        // Keep index_path in memory
+        // Load existing config or create new one
+        let mut configuration = if config_path.exists() {
+            let file = fs::File::open(&config_path)?;
+            serde_json::from_reader(file).unwrap_or_else(|_| HashMap::<String, String>::new())
+        } else {
+            HashMap::<String, String>::new()
+        };
+
+        // Update configuration
+        configuration.insert("index_path".to_string(), path.clone());
+
+        // Write back to file
+        let file = fs::File::create(&config_path)?;
+        serde_json::to_writer(file, &configuration)?;
+
+        // Use in memory
         index_path = path.to_string();
     } else {
-        // Open the file in read-only mode with buffer.
-        const CONFIG_PATH: &str = "./indeces/config.json";
-        if !Path::new(CONFIG_PATH).exists() {
+        // Use the SAME path for reading
+        let config_path = get_config_path();
+
+        if !config_path.exists() {
             eprintln!("Error: No index path provided and no saved configuration found.");
             eprintln!("Please run the program with --index-path option first:");
-            eprintln!("    cargo run -- --index-path /path/to/documents index");
-            process::exit(1);
+            eprintln!("    seroost  --index-path /path/to/documents index");
+            process::exit(0);
         }
-        let file = fs::File::open(CONFIG_PATH)?;
+        let file = fs::File::open(config_path)?;
         let reader = std::io::BufReader::new(file);
 
-        // Read the JSON contents of the file as an instance of `User`.
+        // Read the JSON contents of the file.
         let config: HashMap<String, String> =
             serde_json::from_reader(reader).expect("Error Parsing The Json configuration file");
         index_path = config
@@ -256,12 +268,12 @@ fn index_documents(dir_path: &str, max_file_size: u64) -> Result<(), parsers::Gl
     process(dir_path, &mut term_frequency_index, max_file_size)?;
 
     // Save the complete index only once after all processing is done
-    const INDEX_PATH: &str = "./indeces/index.json";
-    if let Some(parent) = Path::new(INDEX_PATH).parent() {
+    let index_path :PathBuf = get_indeces_path();
+    if let Some(parent) = Path::new(&index_path).parent() {
         fs::create_dir_all(parent)?;
     }
-    println!("{} {}", "Saving index to:".green(), INDEX_PATH.blue());
-    let index_file = fs::File::create(INDEX_PATH)?;
+    println!("{} {}", "Saving index to:".green(), index_path.to_str().expect("Invalid Path Name").blue());
+    let index_file = fs::File::create(index_path)?;
     serde_json::to_writer(index_file, &term_frequency_index)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
@@ -277,8 +289,8 @@ fn index_documents(dir_path: &str, max_file_size: u64) -> Result<(), parsers::Gl
 
 fn search_documents(query: &str) -> Result<(), parsers::GlobalError> {
     // Load the index
-    const INDEX_PATH: &str = "./indeces/index.json";
-    if !Path::new(INDEX_PATH).exists() {
+    let index_path = get_indeces_path();
+    if !Path::new(&index_path).exists() {
         eprintln!(
             "{}",
             "Error: index file not found. Please run index first."
@@ -288,7 +300,7 @@ fn search_documents(query: &str) -> Result<(), parsers::GlobalError> {
         return Ok(());
     }
 
-    let index_file = fs::File::open(INDEX_PATH)?;
+    let index_file = fs::File::open(&index_path)?;
     let reader = std::io::BufReader::new(index_file);
     let term_frequency_index: TermFreqIndex = serde_json::from_reader(reader)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
@@ -507,4 +519,22 @@ fn display_usage() -> Result<(), parsers::GlobalError> {
 
     println!("{}", "═".repeat(80).cyan());
     Ok(())
+}
+
+/// Returns the configuration path based on the system used.
+/// If no config path found, it results to directory based config storage.
+fn get_config_path() -> PathBuf {
+    match dirs::config_dir() {
+        Some(path) => path.join("seroost").join("config.json"),
+        None => PathBuf::from("./indeces/config.json"),
+    }
+}
+
+/// Returns the configuration path based on the system used.
+/// If no config path found, it results to directory based index storage.
+fn get_indeces_path() -> PathBuf {
+    match dirs::config_dir(){
+        Some(path) => path.join("seroost").join("index.json"),
+        None => PathBuf::from("./indeces/index.json"),        
+    }
 }
