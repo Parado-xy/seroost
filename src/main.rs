@@ -150,26 +150,54 @@ fn process(
                 let mut content: Vec<char> = Vec::new();
                 match path.extension() {
                     Some(ext) => match ext.to_string_lossy().to_lowercase().as_str() {
-                        "pdf" => {
-                            content = parsers::read_entire_pdf_file(&path)?
-                                .chars()
-                                .collect::<Vec<_>>();
-                        }
-                        "txt" => {
-                            content = parsers::read_entire_txt_file(&path)?
-                                .chars()
-                                .collect::<Vec<_>>();
-                        }
-                        "xml" | "xhtml" => {
-                            content = parsers::read_entire_xml_file(&path)?
-                                .chars()
-                                .collect::<Vec<_>>();
-                        }
-                        "html" | "htm" => {
-                            content = parsers::read_entire_html_file(&path)?
-                                .chars()
-                                .collect::<Vec<_>>();
-                        }
+                        "pdf" => match parsers::read_entire_pdf_file(&path) {
+                            Ok(text) => content = text.chars().collect::<Vec<_>>(),
+                            Err(e) => {
+                                eprintln!(
+                                    "{} {:?}: {}",
+                                    "Error processing PDF file:".red(),
+                                    path,
+                                    e
+                                );
+                                continue;
+                            }
+                        },
+                        "txt" => match parsers::read_entire_txt_file(&path) {
+                            Ok(text) => content = text.chars().collect::<Vec<_>>(),
+                            Err(e) => {
+                                eprintln!(
+                                    "{} {:?}: {}",
+                                    "Error processing text file:".red(),
+                                    path,
+                                    e
+                                );
+                                continue;
+                            }
+                        },
+                        "xml" | "xhtml" => match parsers::read_entire_xml_file(&path) {
+                            Ok(text) => content = text.chars().collect::<Vec<_>>(),
+                            Err(e) => {
+                                eprintln!(
+                                    "{} {:?}: {}",
+                                    "Error processing XML file:".red(),
+                                    path,
+                                    e
+                                );
+                                continue;
+                            }
+                        },
+                        "html" | "htm" => match parsers::read_entire_html_file(&path) {
+                            Ok(text) => content = text.chars().collect::<Vec<_>>(),
+                            Err(e) => {
+                                eprintln!(
+                                    "{} {:?}: {}",
+                                    "Error processing HTML file:".red(),
+                                    path,
+                                    e
+                                );
+                                continue;
+                            }
+                        },
                         _ => {
                             eprintln!("Error: do not know how to process file: {path:?}. Skipping file...");
                             continue;
