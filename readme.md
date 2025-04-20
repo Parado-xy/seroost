@@ -5,7 +5,7 @@ A lightning-fast document search engine built in Rust that indexes and searches 
 
 
 
-## Latest Updates (v2.0)
+## Latest Updates (v0.1.1)
 
 - ⚡ **Multi-threaded indexing** utilizing all available CPU cores
 - 📊 **Improved memory management** with file size limits
