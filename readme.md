@@ -2,28 +2,37 @@
 
 A lightning-fast document search engine built in Rust that indexes and searches through your documents using TF-IDF scoring.
 **Note that credit goes to tsoding daily on YT for starting the project about 2 years ago. He created an XML search engine with a web interface and thought of extending it. I don't think he finished the project though, so i extended it from just xml and made it a CLI tool. Here's his yt channel: https://www.youtube.com/@TsodingDaily**
+
+
+
+## Latest Updates (v2.0)
+
+- ⚡ **Multi-threaded indexing** utilizing all available CPU cores
+- 📊 **Improved memory management** with file size limits
+- 🎨 **Enhanced CLI output** with color-coded status messages
+- 🔄 **Streaming file processing** for better performance
+- 🔍 **Extended file format support** (PDF, TXT, XML, HTML)
+
 ## Features
 
-- 🚀 **Fast indexing** of documents in various formats (PDF, TXT, XML, HTML)
-- 🔍 **TF-IDF based search** that understands document relevance
-- 📁 **Recursive directory traversal** for processing entire document collections
-- ⚙️ **Persistent configuration** to maintain search settings between runs
-- 🛠️ **Command-line interface** for easy integration into workflows
+- 🚀 **Parallel processing** for faster document indexing
+- 🔍 **TF-IDF based search** with relevance scoring
+- 📁 **Recursive directory traversal**
+- ⚙️ **System-aware configuration storage**
+- 🛠️ **User-friendly CLI** with detailed feedback
 
 ## Installation
 
 ### Prerequisites
 
 - Rust and Cargo (1.70 or later)
+- Linux-based system (tested on Ubuntu/Debian)
 
 ### Building from source
 
 ```bash
-# Clone the repository
 git clone https://github.com/parado-xy/seroost.git
 cd seroost
-
-# Build the project
 cargo build --release
 
 # Optional: Create a symlink to use from anywhere
@@ -34,93 +43,63 @@ sudo ln -s "$(pwd)/target/release/seroost" /usr/local/bin/
 
 ### Indexing documents
 
-First, index your documents directory:
-
 ```bash
-# Using the binary
+# Index with default settings
 seroost --index-path /path/to/documents index
 
-# Using cargo
-cargo run -- --index-path /path/to/documents index
+# Index with custom file size limit (in MB)
+seroost --index-path /path/to/documents --max-file-size 50 index
 ```
 
 ### Searching documents
 
-After indexing, search through your documents:
-
 ```bash
-# Search for specific terms
-seroost search "your search query"
+# Simple search
+seroost search "your query"
 
-# Or with cargo
-cargo run -- search "your search query"
-```
-
-### Command-Line Options
-
-- `--index-path`: Specifies the directory containing documents to index
-- `--max-file-size`: Sets maximum file size to index (in MB, default: 25)
-- `--help`: Displays help information
-
-### Built-in Commands
-
-- `index`: Indexes the documents in the specified directory
-- `search "query"`: Searches for documents matching the query
-- `usage`: Displays a detailed walkthrough with colorized examples
-
-### Getting Help
-
-Seroost includes a built-in help system with practical examples:
-
-```bash
-# Display detailed usage walkthrough with examples
+# Display usage guide
 seroost usage
-
-# This shows a step-by-step guide including:
-# - Installation instructions
-# - Sample document creation
-# - Indexing examples with expected output
-# - Search examples with expected results
 ```
-
-## Supported File Types
-
-- PDF documents
-- Plain text files (.txt)
-- XML files
-- HTML documents
 
 ## Implementation Details
 
-Seroost uses:
-- Term Frequency-Inverse Document Frequency (TF-IDF) for relevance scoring
-- JSON for storing the document index
-- Custom tokenization for text processing
-- Colorized terminal output for better readability
+- **Multi-threaded Architecture:**
+  - Separate threads for directory traversal
+  - Worker thread pool for file processing
+  - Dedicated thread for term frequency calculations
 
-## Directory Structure
+- **Memory Management:**
+  - Configurable file size limits
+  - Efficient string handling
+  - Streaming file processing
+
+- **Search Algorithm:**
+  - TF-IDF scoring for relevance
+  - Document frequency optimization
+  - Top-K results ranking
+
+## Project Structure
 
 ```
 seroost/
 ├── src/
-│   ├── main.rs       # Main application logic
-│   ├── lexer.rs      # Text tokenization
-│   └── parsers.rs    # File format parsers
-├── indeces/          # Generated index files
-│   ├── config.json   # Configuration
-│   └── index.json    # Document index
-└── Cargo.toml        # Dependencies
+│   ├── main.rs          # Entry point and CLI handling
+│   ├── lexer.rs         # Text tokenization
+│   ├── parsers.rs       # File format parsers
+│   ├── interact.rs      # Single-threaded implementation
+│   └── interactives.rs  # Multi-threaded implementation
+└── Cargo.toml
 ```
 
 ## Contributing
 
-Contributions are welcome! Here are ways you can contribute:
+Contributions are welcome! Current focus areas:
 
-1. Add support for more document formats
-2. Improve search algorithms
-3. Add unit tests
-4. Enhance the CLI interface
-5. Report bugs and suggest features
+1. Memory optimization for large document collections
+2. Additional file format support
+3. Search result caching
+4. Query optimization
+5. Unit test coverage
 
 ## License
 
@@ -128,4 +107,4 @@ MIT License
 
 ---
 
-*Built with Rust and a passion for fast document search*
+*Built with Rust 🦀 - Optimized for Performance*

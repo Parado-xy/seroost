@@ -98,7 +98,7 @@ pub fn read_entire_xml_file<P: AsRef<Path>>(file_path: P) -> Result<String, Glob
     Ok(content)
 }
 
-pub fn read_entire_html_file(path: &Path) -> Result<String, io::Error> {
+pub fn read_entire_html_file<P: AsRef<Path>>(path: P) -> Result<String, io::Error> {
     let html_content = std::fs::read_to_string(path)?;
 
     // Parse the HTML
