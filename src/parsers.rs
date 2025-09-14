@@ -117,3 +117,33 @@ pub fn read_entire_html_file<P: AsRef<Path>>(path: P) -> Result<String, io::Erro
 }
 
 
+
+pub fn read_code_file<P: AsRef<Path>>(path: P) -> Result<String, io::Error> {
+    let code_content = std::fs::read_to_string(&path)?;
+    
+    // Add line numbers to each line for better search results
+    let mut numbered_content = String::new();
+    
+    for (line_number, line) in code_content.lines().enumerate() {
+        // Format: "Line X: content"
+        numbered_content.push_str(&format!("Line {}: {}\n", line_number + 1, line));
+    }
+    
+    Ok(numbered_content)
+}
+
+// function specifically for getting line information
+pub fn get_code_line_info<P: AsRef<Path>>(path: P, search_term: &str) -> Result<Vec<(usize, String)>, io::Error> {
+    let code_content = std::fs::read_to_string(&path)?;
+    let mut matches = Vec::new();
+    
+    for (line_number, line) in code_content.lines().enumerate() {
+        if line.to_lowercase().contains(&search_term.to_lowercase()) {
+            matches.push((line_number + 1, line.to_string()));
+        }
+    }
+    
+    Ok(matches)
+}
+
+

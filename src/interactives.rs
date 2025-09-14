@@ -178,6 +178,29 @@ pub fn process_file(path: String, max_file_size: u64) {
                                 continue;
                             }
                         },
+                        "rs" | "py" | "js" | "ts" | "java" | "cpp" | "c" | "h" | "go" | "php" | "rb" | "swift" | "kt" => {
+                            match parsers::read_code_file(&file_path) {
+                                Ok(text) => {
+                                    let content = text.chars().collect::<Vec<_>>();
+                                    let _ = processing_sender.send((file_path, content)).map_err(|err| {
+                                        eprintln!(
+                                            "{} : {}",
+                                            "Error sending code file content to receiving channel:".red(),
+                                            err
+                                        );
+                                    });
+                                }
+                                Err(e) => {
+                                    eprintln!(
+                                        "{} {:?}: {}",
+                                        "Error processing code file:".red(),
+                                        file_path,
+                                        e
+                                    );
+                                    continue;
+                                }
+                            }
+                        },                        
                         _ => {
                             eprintln!(
                                 "{}: do not know how to process this file, couldn't discern the extension: {file_path:?}

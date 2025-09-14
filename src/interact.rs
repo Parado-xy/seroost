@@ -1,19 +1,26 @@
 #![allow(dead_code)]
 
-// Bring modules into scope. 
-use colored::Colorize; 
-use crate::parsers; 
-use std::fs;
+// Bring modules into scope.
+use crate::parsers;
+use colored::Colorize;
 use std::collections::HashMap;
-use std::path::{PathBuf, Path};
-use std::io; 
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
 
 // Define 2 types.
 type TermFreq = HashMap<String, usize>;
 type TermFreqIndex = HashMap<PathBuf, TermFreq>;
 
 // Bring native crates.
-use crate::lexer; 
+use crate::lexer;
+
+// Mode Enum
+// This determines how the output will looklike, it defaults to regular.
+pub enum Mode {
+    Regular,
+    Code,
+}
 
 pub fn display_usage() -> Result<(), parsers::GlobalError> {
     println!("{}", "═".repeat(80).cyan());
@@ -137,7 +144,6 @@ pub fn display_usage() -> Result<(), parsers::GlobalError> {
     Ok(())
 }
 
-
 pub fn process_files(
     dir_path: &str,
     term_frequency_index: &mut TermFreqIndex,
@@ -159,7 +165,7 @@ pub fn process_files(
                     )?;
                     continue;
                 }
-                // Print this message to inform the user of a skipped large file. 
+                // Print this message to inform the user of a skipped large file.
                 if let Ok(metadata) = fs::metadata(&path) {
                     let file_size = metadata.len();
                     if file_size > max_file_size {
@@ -173,7 +179,7 @@ pub fn process_files(
                     }
                 }
 
-                // Process files based on extensions. 
+                // Process files based on extensions.
                 let content: Vec<char>;
                 match path.extension() {
                     Some(ext) => match ext.to_string_lossy().to_lowercase().as_str() {
@@ -219,6 +225,19 @@ pub fn process_files(
                                 eprintln!(
                                     "{} {:?}: {}",
                                     "Error processing HTML file:".red(),
+                                    path,
+                                    e
+                                );
+                                continue;
+                            }
+                        },
+                        "rs" | "py" | "js" | "ts" | "java" | "cpp" | "c" | "h" | "go" | "php"
+                        | "rb" | "swift" | "kt" => match parsers::read_code_file(&path) {
+                            Ok(text) => content = text.chars().collect::<Vec<_>>(),
+                            Err(e) => {
+                                eprintln!(
+                                    "{} {:?}: {}",
+                                    "Error processing code file:".red(),
                                     path,
                                     e
                                 );
@@ -285,11 +304,15 @@ pub fn index_documents(dir_path: &str, max_file_size: u64) -> Result<(), parsers
     process_files(dir_path, &mut term_frequency_index, max_file_size)?;
 
     // Save the complete index only once after all processing is done
-    let index_path :PathBuf = get_indeces_path();
+    let index_path: PathBuf = get_indeces_path();
     if let Some(parent) = Path::new(&index_path).parent() {
         fs::create_dir_all(parent)?;
     }
-    println!("{} {}", "Saving index to:".green(), index_path.to_str().expect("Invalid Path Name").blue());
+    println!(
+        "{} {}",
+        "Saving index to:".green(),
+        index_path.to_str().expect("Invalid Path Name").blue()
+    );
     let index_file = fs::File::create(index_path)?;
     serde_json::to_writer(index_file, &term_frequency_index)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
@@ -304,16 +327,23 @@ pub fn index_documents(dir_path: &str, max_file_size: u64) -> Result<(), parsers
     Ok(())
 }
 
-pub fn search_documents(query: &str) -> Result<(), parsers::GlobalError> {
+pub fn search_documents(query: &str, output_mode: Mode) -> Result<(), parsers::GlobalError> {
     // Load the index
     let index_path = get_indeces_path();
     if !Path::new(&index_path).exists() {
-        eprintln!(
-            "{}",
-            "Error: index file not found. Please run index first."
-                .red()
-                .bold()
-        );
+        match output_mode {
+            Mode::Regular => {
+                eprintln!(
+                    "{}",
+                    "Error: index file not found. Please run index first."
+                        .red()
+                        .bold()
+                );
+            }
+            Mode::Code => {
+                eprintln!("{{\"error\": \"index file not found. Please run index first.\"}}");
+            }
+        }
         return Ok(());
     }
 
@@ -322,7 +352,10 @@ pub fn search_documents(query: &str) -> Result<(), parsers::GlobalError> {
     let term_frequency_index: TermFreqIndex = serde_json::from_reader(reader)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
 
-    println!("{}", "Loading search index...".blue());
+    match output_mode {
+        Mode::Regular => println!("{}", "Loading search index...".blue()),
+        Mode::Code => {} // No output for code mode
+    }
 
     // Tokenize the search query
     let query_chars = query.chars().collect::<Vec<_>>();
@@ -330,7 +363,10 @@ pub fn search_documents(query: &str) -> Result<(), parsers::GlobalError> {
     let query_terms: Vec<String> = lexer.collect();
 
     if query_terms.is_empty() {
-        println!("{}", "No valid search terms found.".yellow());
+        match output_mode {
+            Mode::Regular => println!("{}", "No valid search terms found.".yellow()),
+            Mode::Code => println!("{{\"error\": \"No valid search terms found.\"}}"),
+        }
         return Ok(());
     }
 
@@ -384,39 +420,117 @@ pub fn search_documents(query: &str) -> Result<(), parsers::GlobalError> {
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    // Display results with color
-    println!(
-        "{} {}",
-        "Search results for:".green().bold(),
-        query.white().on_blue().bold()
-    );
+    // Display results based on mode
+    match output_mode {
+        Mode::Regular => {
+            println!(
+                "{} {}",
+                "Search results for:".green().bold(),
+                query.white().on_blue().bold()
+            );
 
-    if ranked_docs.is_empty() {
-        println!("{}", "No matching documents found.".yellow());
-    } else {
-        println!("{}", "═".repeat(60).cyan());
-        for (i, (path, score)) in ranked_docs.iter().take(10).enumerate() {
-            let filename = path.file_name().unwrap_or_default().to_string_lossy();
+            if ranked_docs.is_empty() {
+                println!("{}", "No matching documents found.".yellow());
+            } else {
+                println!("{}", "═".repeat(60).cyan());
+                for (i, (path, score)) in ranked_docs.iter().take(10).enumerate() {
+                    let filename = path.file_name().unwrap_or_default().to_string_lossy();
 
-            // Format ranking number
-            let rank = format!("{}.", i + 1).yellow().bold();
+                    // Format ranking number
+                    let rank = format!("{}.", i + 1).yellow().bold();
 
-            // Format path with colorized filename
-            let path_str = path.to_string_lossy();
-            let colorized_path = path_str.replace(&*filename, &filename.green().bold().to_string());
+                    // Format path with colorized filename
+                    let path_str = path.to_string_lossy();
+                    let colorized_path =
+                        path_str.replace(&*filename, &filename.green().bold().to_string());
 
-            // Format score
-            let score_str = format!("Score: {:.5}", score).bright_blue();
+                    // Format score
+                    let score_str = format!("Score: {:.5}", score).bright_blue();
 
-            println!("{} {} ({})", rank, colorized_path, score_str);
+                    println!("{} {} ({})", rank, colorized_path, score_str);
+                }
+                println!("{}", "═".repeat(60).cyan());
+            }
         }
-        println!("{}", "═".repeat(60).cyan());
+        Mode::Code => {
+            if ranked_docs.is_empty() {
+                println!("{{\"query\": \"{}\", \"results\": []}}", query);
+            } else {
+                println!("{{");
+                println!("  \"query\": \"{}\",", query);
+                println!("  \"results\": [");
+
+                for (i, (path, score)) in ranked_docs.iter().take(10).enumerate() {
+                    let path_str = path.to_string_lossy();
+                    println!("    {{");
+                    println!("      \"rank\": {},", i + 1);
+                    println!("      \"path\": \"{}\",", path_str);
+                    println!("      \"score\": {:.5},", score);
+
+                    // Check if it's a code file and get line information
+                    if let Some(ext) = path.extension() {
+                        let ext_str = ext.to_string_lossy().to_lowercase();
+                        if matches!(
+                            ext_str.as_str(),
+                            "rs" | "py"
+                                | "js"
+                                | "ts"
+                                | "java"
+                                | "cpp"
+                                | "c"
+                                | "h"
+                                | "go"
+                                | "php"
+                                | "rb"
+                                | "swift"
+                                | "kt"
+                        ) {
+                            match parsers::get_code_line_info(path, query) {
+                                Ok(line_matches) => {
+                                    println!("      \"line_matches\": [");
+                                    for (j, (line_num, line_content)) in
+                                        line_matches.iter().enumerate()
+                                    {
+                                        let line_content_escaped =
+                                            line_content.replace("\"", "\\\"").replace("\n", "\\n");
+                                        print!(
+                                            "        {{\"line\": {}, \"content\": \"{}\"}}",
+                                            line_num, line_content_escaped
+                                        );
+                                        if j < line_matches.len() - 1 {
+                                            println!(",");
+                                        } else {
+                                            println!();
+                                        }
+                                    }
+                                    println!("      ]");
+                                }
+                                Err(_) => {
+                                    println!("      \"line_matches\": []");
+                                }
+                            }
+                        } else {
+                            println!("      \"line_matches\": []");
+                        }
+                    } else {
+                        println!("      \"line_matches\": []");
+                    }
+
+                    print!("    }}");
+                    if i < ranked_docs.len() - 1 && i < 9 {
+                        println!(",");
+                    } else {
+                        println!();
+                    }
+                }
+                println!("  ]");
+                println!("}}");
+            }
+        }
     }
 
     Ok(())
 }
-
-
 
 /// Returns the configuration path based on the system used.
 /// If no config path found, it results to directory based config storage.
@@ -430,8 +544,8 @@ pub fn get_config_path() -> PathBuf {
 /// Returns the configuration path based on the system used.
 /// If no config path found, it results to directory based index storage.
 pub fn get_indeces_path() -> PathBuf {
-    match dirs::config_dir(){
+    match dirs::config_dir() {
         Some(path) => path.join("seroost").join("index.json"),
-        None => PathBuf::from("./indeces/index.json"),        
+        None => PathBuf::from("./indeces/index.json"),
     }
 }

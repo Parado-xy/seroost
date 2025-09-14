@@ -21,10 +21,17 @@ struct Cli {
     /// This path will be saved and used should the search command be used.
     #[arg(short, long)]
     index_path: Option<String>,
+
     /// Pass a max file size.
     /// Defaults to 25mb
     #[arg(short, long, default_value = "25")]
-    max_file_size: u64,
+    file_size: u64,
+
+    /// Pass an output mode.
+    /// Available modes: regular, code
+    /// Defaults to regular
+    #[arg(short, long, default_value = "regular")]
+    mode: Option<String>,
 
     #[command(subcommand)]
     command: Option<AppCommands>,
@@ -52,7 +59,16 @@ fn main() -> Result<(), parsers::GlobalError> {
     // Create Index Path Variable to  be filled dynamically. 
     let index_path: String;
     // TODO: Add max_file_size to the config file.
-    let max_file_size: u64 = cli.max_file_size * 1024u64 * 1024u64;
+    let max_file_size: u64 = cli.file_size * 1024u64 * 1024u64;
+
+    let output_mode = match cli.mode.as_deref() {
+        Some("regular") => interact::Mode::Regular,
+        Some("code") => interact::Mode::Code,
+        _ => {
+            eprintln!("{}", format!("Error: Invalid Output mode, expected one of: [regular, code]").color("red")); 
+            process::exit(1);
+        }
+    };
 
     // See if an index path was provided.
     if let Some(path) = &cli.index_path {
@@ -108,7 +124,7 @@ fn main() -> Result<(), parsers::GlobalError> {
             interactives::process_file(index_path, max_file_size);
         }
         Some(AppCommands::Search { term }) => {
-            interact::search_documents(term)?;
+            interact::search_documents(term, output_mode)?;
         }
         Some(AppCommands::Usage) => {
             interact::display_usage()?;
